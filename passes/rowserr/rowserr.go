@@ -55,6 +55,7 @@ func NewRun(pkgs ...string) func(pass *analysis.Pass) (interface{}, error) {
 // run executes an analysis for the pass. The receiver is passed
 // by value because this func is called in parallel for different passes.
 func (r runner) run(pass *analysis.Pass, pkg string) (interface{}, error) {
+	r.sqlPkg = pkg
 	r.pass = pass
 	funcs := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA).SrcFuncs
 	r.rowsObj = analysisutil.LookupFromImports(pass.Pkg.Imports(), r.sqlPkg, rowsName)
