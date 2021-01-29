@@ -39,10 +39,10 @@ type runner struct {
 
 func NewRun(pkgs ...string) func(pass *analysis.Pass) (interface{}, error) {
 	return func(pass *analysis.Pass) (interface{}, error) {
-		pkgs = append(pkgs, "database/sql")
-		for _, pkg := range pkgs {
+		sqlPkgs := append(pkgs, "database/sql")
+		for _, pkg := range sqlPkgs {
 			r := new(runner)
-			r.sqlPkgs = pkgs
+			r.sqlPkgs = sqlPkgs
 			r.run(pass, pkg)
 		}
 		return nil, nil
