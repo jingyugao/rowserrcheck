@@ -1,6 +1,6 @@
 module github.com/jingyugao/rowserrcheck
 
-go 1.12
+go 1.13
 
 require (
 	github.com/gostaticanalysis/analysisutil v0.0.0-20190318220348-4088753ea4d3

@@ -1,7 +1,6 @@
 package rowserr
 
 import (
-	"fmt"
 	"go/ast"
 	"go/types"
 	"strconv"
@@ -51,7 +50,7 @@ func NewRun(pkgs ...string) func(pass *analysis.Pass) (interface{}, error) {
 
 // run executes an analysis for the pass. The receiver is passed
 // by value because this func is called in parallel for different passes.
-func (r runner) run(pass *analysis.Pass, pkgPath string) (interface{}, error) {
+func (r runner) run(pass *analysis.Pass, pkgPath string) {
 	r.pass = pass
 	pssa := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
 	funcs := pssa.SrcFuncs
@@ -59,18 +58,18 @@ func (r runner) run(pass *analysis.Pass, pkgPath string) (interface{}, error) {
 	pkg := pssa.Pkg.Prog.ImportedPackage(pkgPath)
 	if pkg == nil {
 		// skip
-		return nil, nil
+		return
 	}
 
 	r.rowsObj = pkg.Type(rowsName).Object()
 	if r.rowsObj == nil {
 		// skip checking
-		return nil, nil
+		return
 	}
 
 	resNamed, ok := r.rowsObj.Type().(*types.Named)
 	if !ok {
-		return nil, nil
+		return
 	}
 
 	r.rowsTyp = types.NewPointer(resNamed)
@@ -83,28 +82,26 @@ func (r runner) run(pass *analysis.Pass, pkgPath string) (interface{}, error) {
 		}
 
 		// skip if the function is just referenced
-		var isreffunc bool
+		var isRefFunc bool
 
 		for i := 0; i < f.Signature.Results().Len(); i++ {
 			if types.Identical(f.Signature.Results().At(i).Type(), r.rowsTyp) {
-				isreffunc = true
+				isRefFunc = true
 			}
 		}
 
-		if isreffunc {
+		if isRefFunc {
 			continue
 		}
 
 		for _, b := range f.Blocks {
 			for i := range b.Instrs {
 				if r.notCheck(b, i) {
-					pass.Reportf(b.Instrs[i].Pos(), fmt.Sprintf("rows.Err must be checked"))
+					pass.Reportf(b.Instrs[i].Pos(), "rows.Err must be checked")
 				}
 			}
 		}
 	}
-
-	return nil, nil
 }
 
 func (r *runner) notCheck(b *ssa.BasicBlock, i int) (ret bool) {
@@ -127,7 +124,7 @@ func (r *runner) notCheck(b *ssa.BasicBlock, i int) (ret bool) {
 		notCallClose = func(resRef ssa.Instruction) bool {
 			switch resRef := resRef.(type) {
 			case *ssa.Phi:
-				resRefs = append(resRefs, (*resRef.Referrers())...)
+				resRefs = append(resRefs, *resRef.Referrers()...)
 				for _, rf := range *resRef.Referrers() {
 					if !notCallClose(rf) {
 						return false
@@ -150,7 +147,6 @@ func (r *runner) notCheck(b *ssa.BasicBlock, i int) (ret bool) {
 
 						return r.calledInFunc(f, called)
 					}
-
 				}
 			case *ssa.Call: // Indirect function call
 				if r.isCloseCall(resRef) {
@@ -176,8 +172,8 @@ func (r *runner) notCheck(b *ssa.BasicBlock, i int) (ret bool) {
 						}
 					}
 				}
-
 			}
+
 			return true
 		}
 
@@ -187,6 +183,7 @@ func (r *runner) notCheck(b *ssa.BasicBlock, i int) (ret bool) {
 			}
 		}
 	}
+
 	return true
 }
 
@@ -321,15 +318,6 @@ func (r *runner) calledInFunc(f *ssa.Function, called bool) bool {
 			}
 		}
 	}
-	return true
-}
 
-// isNamedType reports whether t is the named type path.name.
-func isNamedType(t types.Type, path, name string) bool {
-	n, ok := t.(*types.Named)
-	if !ok {
-		return false
-	}
-	obj := n.Obj()
-	return obj.Name() == name && obj.Pkg() != nil && obj.Pkg().Path() == path
+	return true
 }
