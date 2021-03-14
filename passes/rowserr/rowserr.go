@@ -64,7 +64,7 @@ func (r runner) run(pass *analysis.Pass, pkgPath string) {
 	rowsType := pkg.Type(rowsName)
 	if rowsType == nil {
 		// skip checking
-		return nil, nil
+		return
 	}
 
 	r.rowsObj = rowsType.Object()
